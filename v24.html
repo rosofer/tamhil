@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>כלי תמהיל דירות v24</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { margin: 0; padding: 16px; background:#f5f5f5; color:#222; }
+    h1, h2, h3 { margin-top: 0; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .card { background:#fff; border-radius:12px; padding:16px 20px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    .card-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
+    .badge { padding:2px 8px; border-radius:999px; background:#e8f3ff; color:#005a9e; font-size:.75rem; }
+    .row { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:8px; }
+    .field { flex:1 1 180px; min-width:180px; }
+    label { display:block; font-size:.85rem; margin-bottom:4px; color:#555; }
+    input[type="number"], input[type="text"] { width:100%; padding:6px 8px; border-radius:8px; border:1px solid #ccc; font-size:.9rem; }
+    input:focus { outline:none; border-color:#0078d4; box-shadow:0 0 0 1px rgba(0,120,212,0.15); }
+    .btn { padding:8px 14px; border-radius:999px; border:none; background:#0078d4; color:#fff; font-size:.9rem; cursor:pointer; white-space:nowrap; }
+    .btn.secondary { background:#e0e0e0; color:#333; }
+    .btn.danger { background:#d13438; }
+    .btn.tiny { padding:4px 8px; font-size:.78rem; border-radius:10px; }
+    .btn-group { display:flex; gap:8px; flex-wrap:wrap; }
+    .small { font-size:.82rem; color:#666; margin-top:6px; }
+    .error { color:#b00020; font-size:.85rem; margin-top:8px; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; font-size:.85rem; }
+    th, td { border:1px solid #ddd; padding:6px 8px; text-align:center; }
+    th { background:#f0f0f0; }
+    tbody tr:nth-child(even) { background:#fafafa; }
+    .hidden { display:none; }
+    .table-wrap { width:100%; overflow:auto; border-radius:10px; border:1px solid #eee; }
+    .floor-controls { display:flex; gap:6px; justify-content:center; }
+    .ok { color:#1a7f37; font-weight:700; }
+    .bad { color:#b00020; font-weight:800; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>כלי תמהיל דירות v24</h1>
+  <p class="small">
+    v19: רזרבה אוטומטית לטיפוסים כדי שלא “ייגמרו” בקומות גבוהות + צמצום קומות אוטומטי אם אין מספיק יח״ד לכל הקומות.
+  </p>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>1. פרמטרים כלליים</h2>
+      <span class="badge">בסיס</span>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>זכויות בנייה (מ״ר) – חובה</label>
+        <input id="totalArea" type="number" min="1" step="1" placeholder="למשל 18000">
+      </div>
+      <div class="field">
+        <label>מספר קומות מגורים – חובה</label>
+        <input id="numFloors" type="number" min="1" step="1" placeholder="למשל 26">
+      </div>
+      <div class="field">
+        <label>מגבלת סה״כ יח״ד בבניין (אופציונלי)</label>
+        <input id="totalUnitsCap" type="number" min="1" step="1" placeholder="למשל 170">
+      </div>
+      <div class="field">
+        <label>מגבלת יח״ד בקומה – חובה</label>
+        <input id="maxUnitsPerFloor" type="number" min="1" step="1" placeholder="למשל 7">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>מקסימום שטח קומה (מ״ר) (אופציונלי)</label>
+        <input id="maxFloorAreaCap" type="number" min="1" step="1" placeholder="למשל 720">
+      </div>
+      <div class="field">
+        <label>הצרה ליעדי קומות למעלה (%)</label>
+        <input id="shrinkFactor" type="number" min="0" max="50" step="1" placeholder="למשל 12">
+      </div>
+      <div class="field">
+        <label>אגרסיביות סטאקינג (0–100)</label>
+        <input id="stackingStrength" type="number" min="0" max="100" step="5" placeholder="למשל 75">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>2. דירות תמורה</h2>
+      <label class="small"><input type="checkbox" id="hasTmam"> יש דירות תמורה</label>
+    </div>
+    <div id="tmamSection" class="hidden">
+      <div class="card-header" style="margin-bottom:6px;">
+        <h3 style="font-size:.95rem;">טיפוסי תמורה</h3>
+        <button class="btn secondary" id="addTmamTypeBtn" type="button">+ הוסף טיפוס</button>
+      </div>
+      <div id="tmamTypesContainer" class="small">עדיין לא הוגדרו טיפוסי תמורה.</div>
+      <div id="tmamError" class="error"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>3. מיקס דירות</h2>
+      <div class="btn-group">
+        <button class="btn secondary" id="autoMixBtn" type="button">הצע מיקס אוטומטי (אופציה הבאה)</button>
+        <button class="btn secondary" id="autoRangesBtn" type="button">חשב טווחים אוטומטיים לפי גודל</button>
+        <button class="btn secondary" id="addTypeBtn" type="button">+ הוסף טיפוס דירה</button>
+      </div>
+    </div>
+    <div class="small">
+      v19 יתקן טווחים שלא מכסים קומות, ישמור רזרבה לקומות גבוהות, ואם אין מספיק יח״ד — יצמצם קומות אוטומטית (בלי קומות ריקות למעלה).
+    </div>
+    <div id="typesContainer"></div>
+    <div id="typesError" class="error"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>4. חישוב</h2></div>
+    <div class="btn-group">
+      <button class="btn" id="calculateBtn" type="button">חשב</button>
+      <button class="btn secondary" id="exportBtn" type="button" disabled>ייצוא לאקסל (כולל חתך צבעוני)</button>
+      <button class="btn secondary" id="toggleSectionBtn" type="button" disabled>הצג / הסתר חתך</button>
+    </div>
+    <div id="calcError" class="error"></div>
+  </div>
+
+  <div class="card" id="summaryCard" style="display:none;">
+    <div class="card-header"><h2>5. סיכום</h2><span class="badge">תוצאות</span></div>
+    <div id="summaryInfo" class="small"></div>
+    <div class="table-wrap" id="summaryTableWrap"></div>
+  </div>
+
+  <div class="card" id="floorsCard" style="display:none;">
+    <div class="card-header"><h2>6. חלוקה קומתית</h2><span class="badge">קומות</span></div>
+    <div class="small" id="statusLine"></div>
+    <div class="table-wrap" id="floorsTableWrapper"></div>
+  </div>
+
+  <div class="card" id="sectionCard" style="display:none;">
+    <div class="card-header"><h2>7. חתך בניין (קומה עליונה למעלה)</h2><span class="badge">חתך</span></div>
+    <div class="small">החצים מחליפים שורות שלמות. אם ההחלפה שוברת אילוצים – היא מתבטלת.</div>
+    <div class="table-wrap" id="sectionTableWrapper"></div>
+  </div>
+</div>
+
+<script>
+  let apartmentTypes = [];
+  let tmamTypes = [];
+  let lastResults = null;
+  let autoMixPresetIndex = -1;
+  let lastAutoAdjustNote = '';
+
+  const totalAreaEl = document.getElementById('totalArea');
+  const numFloorsEl = document.getElementById('numFloors');
+  const totalUnitsCapEl = document.getElementById('totalUnitsCap');
+  const maxUnitsPerFloorEl = document.getElementById('maxUnitsPerFloor');
+  const maxFloorAreaCapEl = document.getElementById('maxFloorAreaCap');
+  const shrinkFactorEl = document.getElementById('shrinkFactor');
+  const stackingStrengthEl = document.getElementById('stackingStrength');
+
+  const hasTmamEl = document.getElementById('hasTmam');
+  const tmamSectionEl = document.getElementById('tmamSection');
+  const addTmamTypeBtn = document.getElementById('addTmamTypeBtn');
+  const tmamTypesContainer = document.getElementById('tmamTypesContainer');
+  const tmamErrorEl = document.getElementById('tmamError');
+
+  const autoMixBtn = document.getElementById('autoMixBtn');
+  const autoRangesBtn = document.getElementById('autoRangesBtn');
+  const addTypeBtn = document.getElementById('addTypeBtn');
+  const typesContainer = document.getElementById('typesContainer');
+  const typesErrorEl = document.getElementById('typesError');
+
+  const calculateBtn = document.getElementById('calculateBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const toggleSectionBtn = document.getElementById('toggleSectionBtn');
+  const calcErrorEl = document.getElementById('calcError');
+
+  const summaryCard = document.getElementById('summaryCard');
+  const summaryInfo = document.getElementById('summaryInfo');
+  const summaryTableWrap = document.getElementById('summaryTableWrap');
+
+  const floorsCard = document.getElementById('floorsCard');
+  const floorsTableWrapper = document.getElementById('floorsTableWrapper');
+  const statusLine = document.getElementById('statusLine');
+
+  const sectionCard = document.getElementById('sectionCard');
+  const sectionTableWrapper = document.getElementById('sectionTableWrapper');
+
+  hasTmamEl.addEventListener('change', () => tmamSectionEl.classList.toggle('hidden', !hasTmamEl.checked));
+  addTmamTypeBtn.addEventListener('click', () => addTmamType());
+
+  autoMixBtn.addEventListener('click', () => {
+    const nf = getNumFloorsOrError(); if (!nf) return;
+    autoMixPresetIndex = (autoMixPresetIndex + 1) % 4;
+    apartmentTypes = makePreset(autoMixPresetIndex, nf);
+    renderApartmentTypes();
+    typesErrorEl.textContent = '';
+  });
+
+  autoRangesBtn.addEventListener('click', () => {
+    const nf = getNumFloorsOrError(); if (!nf) return;
+    if (apartmentTypes.length === 0) {
+      typesErrorEl.textContent = 'אין טיפוסים – לחץ קודם על "הצע מיקס אוטומטי" או הוסף טיפוס.';
+      return;
+    }
+    applyAutoRangesBySize(nf);
+    renderApartmentTypes();
+    typesErrorEl.textContent = '';
+  });
+
+  addTypeBtn.addEventListener('click', () => {
+    const nf = getNumFloorsOrError(); if (!nf) return;
+    apartmentTypes.push({ name:`טיפוס חדש ${apartmentTypes.length+1}`, size:80, share:0, isPenthouse:false, fixedUnits:null, minFloor:1, maxFloor:nf });
+    renderApartmentTypes();
+  });
+
+  calculateBtn.addEventListener('click', calculate);
+  exportBtn.addEventListener('click', exportExcelWithColors);
+  toggleSectionBtn.addEventListener('click', () => {
+    if (!lastResults?.hasFloors) return;
+    sectionCard.style.display = (sectionCard.style.display === 'none') ? 'block' : 'none';
+  });
+
+  renderApartmentTypes();
+  renderTmamTypes();
+
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'","&#039;");
+  }
+
+  function getNumFloorsOrError() {
+    const nf = parseInt(numFloorsEl.value,10);
+    if (!Number.isFinite(nf) || nf <= 0) { calcErrorEl.textContent = 'נא להזין מספר קומות.'; return null; }
+    calcErrorEl.textContent = '';
+    return nf;
+  }
+
+  function getMaxUnitsPerFloor() {
+    const v = parseInt(maxUnitsPerFloorEl.value,10);
+    return (Number.isFinite(v) && v > 0) ? v : null;
+  }
+
+  function getMaxFloorAreaCap() {
+    const v = parseFloat(maxFloorAreaCapEl.value);
+    return (Number.isFinite(v) && v > 0) ? v : null;
+  }
+
+  function getShrinkPct() {
+    const v = parseFloat(shrinkFactorEl.value);
+    if (!Number.isFinite(v)) return 0.12;
+    return Math.max(0, Math.min(50, v)) / 100;
+  }
+
+  function getStackStrength() {
+    const v = parseFloat(stackingStrengthEl.value);
+    if (!Number.isFinite(v)) return 75;
+    return Math.max(0, Math.min(100, v));
+  }
+
+  function makePreset(idx, nf) {
+    const presets = [
+      [
+        { name:'דירה 70', size:70, share:20, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 90', size:90, share:35, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 110',size:110,share:30, isPenthouse:false, fixedUnits:null },
+        { name:'פנטהאוז 130',size:130,share:0,  isPenthouse:true, fixedUnits:3 },
+      ],
+      [
+        { name:'דירה 55', size:55, share:25, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 75', size:75, share:30, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 95', size:95, share:25, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 115',size:115,share:20, isPenthouse:false, fixedUnits:null },
+        { name:'פנטהאוז 130',size:130,share:0,  isPenthouse:true, fixedUnits:2 },
+      ],
+      [
+        { name:'דירה 45', size:45, share:30, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 65', size:65, share:25, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 85', size:85, share:25, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 105',size:105,share:20, isPenthouse:false, fixedUnits:null },
+        { name:'פנטהאוז 130',size:130,share:0,  isPenthouse:true, fixedUnits:2 },
+      ],
+      [
+        { name:'דירה 80', size:80, share:30, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 100',size:100,share:45, isPenthouse:false, fixedUnits:null },
+        { name:'דירה 120',size:120,share:25, isPenthouse:false, fixedUnits:null },
+        { name:'פנטהאוז 130',size:130,share:0,  isPenthouse:true, fixedUnits:2 },
+      ],
+    ];
+
+    const types = presets[idx].map(t => ({ ...t, minFloor: 1, maxFloor: nf }));
+
+    // default ranges
+    applyAutoRangesBySize(nf, types);
+    return types;
+  }
+
+  function applyAutoRangesBySize(nf, typesArr = apartmentTypes) {
+    typesArr.forEach(t => {
+      if (t.isPenthouse) { t.minFloor = nf; t.maxFloor = nf; return; }
+      if (t.size <= 60) { t.minFloor=1; t.maxFloor=Math.max(1, Math.floor(nf*0.75)); }
+      else if (t.size <= 85) { t.minFloor=1; t.maxFloor=Math.max(1, Math.floor(nf*0.85)); }
+      else if (t.size <= 105) { t.minFloor=Math.max(1, Math.floor(nf*0.15)); t.maxFloor=Math.max(1, Math.floor(nf*0.95)); }
+      else { t.minFloor=Math.max(1, Math.floor(nf*0.35)); t.maxFloor=nf; }
+    });
+  }
+
+  function renderApartmentTypes() {
+    if (apartmentTypes.length === 0) {
+      typesContainer.innerHTML = '<div class="small">עדיין אין טיפוסים. לחץ "הצע מיקס אוטומטי" או הוסף טיפוס.</div>';
+      return;
+    }
+    const nf = parseInt(numFloorsEl.value,10) || 0;
+    const table = document.createElement('table');
+    table.innerHTML = `<thead><tr><th>טיפוס</th><th>גודל</th><th>אחוז</th><th>פנטהאוז</th><th>קבוע</th><th>מינ׳</th><th>מקס׳</th><th>מחק</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+
+    apartmentTypes.forEach((t,i)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" value="${escapeHtml(t.name)}"></td>
+        <td><input type="number" min="35" max="130" step="1" value="${t.size}"></td>
+        <td><input type="number" min="0" step="0.1" value="${t.share}"></td>
+        <td><input type="checkbox" ${t.isPenthouse?'checked':''}></td>
+        <td><input type="number" min="0" step="1" value="${t.fixedUnits ?? ''}" placeholder="${t.isPenthouse?'1-4':'ריק=אחוזים'}"></td>
+        <td><input type="number" min="1" step="1" value="${t.minFloor ?? 1}" ${nf?`max="${nf}"`:''}></td>
+        <td><input type="number" min="1" step="1" value="${t.maxFloor ?? (nf||1)}" ${nf?`max="${nf}"`:''}></td>
+        <td><button class="btn danger" type="button">מחק</button></td>
+      `;
+      const inputs = tr.querySelectorAll('input');
+      inputs[0].addEventListener('input', e=> apartmentTypes[i].name=e.target.value);
+      inputs[1].addEventListener('input', e=> apartmentTypes[i].size=parseFloat(e.target.value)||0);
+      inputs[2].addEventListener('input', e=> apartmentTypes[i].share=parseFloat(e.target.value)||0);
+      inputs[3].addEventListener('change', e=> apartmentTypes[i].isPenthouse=e.target.checked);
+      inputs[4].addEventListener('input', e=> { const v=parseInt(e.target.value,10); apartmentTypes[i].fixedUnits=isNaN(v)?null:v; });
+      inputs[5].addEventListener('input', e=> apartmentTypes[i].minFloor=parseInt(e.target.value,10)||1);
+      inputs[6].addEventListener('input', e=> apartmentTypes[i].maxFloor=parseInt(e.target.value,10)||apartmentTypes[i].minFloor||1);
+
+      tr.querySelector('button').addEventListener('click', ()=>{ apartmentTypes.splice(i,1); renderApartmentTypes(); });
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    typesContainer.innerHTML='';
+    typesContainer.appendChild(table);
+  }
+
+  function addTmamType() {
+    const nf = getNumFloorsOrError(); if (!nf) return;
+    const idx = tmamTypes.length + 1;
+    tmamTypes.push({ name:`תמורה ${idx}`, units:1, size:80, minFloor:1, maxFloor:Math.min(4,nf) });
+    renderTmamTypes();
+  }
+
+  function renderTmamTypes() {
+    if (tmamTypes.length === 0) { tmamTypesContainer.innerHTML = 'עדיין לא הוגדרו טיפוסי תמורה.'; return; }
+    const table=document.createElement('table');
+    table.innerHTML=`<thead><tr><th>שם</th><th>דירות</th><th>גודל</th><th>מינ׳</th><th>מקס׳</th><th>מחק</th></tr></thead>`;
+    const tbody=document.createElement('tbody');
+    tmamTypes.forEach((t,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><input type="text" value="${escapeHtml(t.name)}"></td>
+        <td><input type="number" min="0" step="1" value="${t.units}"></td>
+        <td><input type="number" min="1" step="1" value="${t.size}"></td>
+        <td><input type="number" min="1" step="1" value="${t.minFloor}"></td>
+        <td><input type="number" min="1" step="1" value="${t.maxFloor}"></td>
+        <td><button class="btn danger" type="button">מחק</button></td>
+      `;
+      const inputs=tr.querySelectorAll('input');
+      inputs[0].addEventListener('input', e=>tmamTypes[i].name=e.target.value);
+      inputs[1].addEventListener('input', e=>tmamTypes[i].units=parseInt(e.target.value,10)||0);
+      inputs[2].addEventListener('input', e=>tmamTypes[i].size=parseFloat(e.target.value)||0);
+      inputs[3].addEventListener('input', e=>tmamTypes[i].minFloor=parseInt(e.target.value,10)||1);
+      inputs[4].addEventListener('input', e=>tmamTypes[i].maxFloor=parseInt(e.target.value,10)||tmamTypes[i].minFloor||1);
+      tr.querySelector('button').addEventListener('click', ()=>{ tmamTypes.splice(i,1); renderTmamTypes(); });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tmamTypesContainer.innerHTML='';
+    tmamTypesContainer.appendChild(table);
+  }
+
+  function makeFloors(numFloors, cols) {
+    return Array.from({length:numFloors}, (_,i)=>({ n:i+1, cells:Array.from({length:cols},()=>null), area:0, units:0 }));
+  }
+  function floorRecalc(f){ let a=0,u=0; for(const c of f.cells){ if(c!=null){a+=c;u++;} } f.area=a; f.units=u; }
+  function placeInFloor(floor, size, preferredCol=null){
+    if(preferredCol!=null && floor.cells[preferredCol]==null){ floor.cells[preferredCol]=size; floor.area+=size; floor.units++; return true; }
+    const idx=floor.cells.findIndex(v=>v==null);
+    if(idx>=0){ floor.cells[idx]=size; floor.area+=size; floor.units++; return true; }
+    return false;
+  }
+
+  function buildColorMapFromFloors(floors){
+    const set=new Set();
+    floors.forEach(f=>f.cells.forEach(v=>{ if(v!=null) set.add(v.toFixed(2)); }));
+    const sizes=Array.from(set).map(parseFloat).sort((a,b)=>a-b);
+    const map={}; const n=sizes.length||1;
+    sizes.forEach((s,i)=>{ const hue=Math.round(360*i/n); map[s.toFixed(2)]=`hsl(${hue},80%,80%)`; });
+    return map;
+  }
+
+  function normalizeColumns(floors){
+    // V24: reorder each floor to maximize vertical stacking (same sizes one above the other)
+    // Pass 1: bottom->top align with below
+    for(let fi=1; fi<floors.length; fi++){
+      const below = floors[fi-1].cells.slice();
+      const cur = floors[fi].cells.slice();
+      const used = Array(cur.length).fill(false);
+      const next = Array(cur.length).fill(null);
+
+      // First, place exact matches on same columns
+      for(let c=0;c<cur.length;c++){
+        const b = below[c];
+        if(b==null) continue;
+        let found=-1;
+        for(let k=0;k<cur.length;k++){
+          if(used[k]) continue;
+          if(cur[k]!=null && Math.abs(cur[k]-b)<1e-6){ found=k; break; }
+        }
+        if(found>=0){
+          next[c]=cur[found];
+          used[found]=true;
+        }
+      }
+
+      // Fill remaining columns with remaining values (small->big for stability)
+      const rest=[];
+      for(let k=0;k<cur.length;k++) if(!used[k] && cur[k]!=null) rest.push(cur[k]);
+      rest.sort((a,b)=>a-b);
+
+      for(let c=0;c<next.length;c++){
+        if(next[c]==null){
+          next[c] = rest.length ? rest.shift() : null;
+        }
+      }
+
+      floors[fi].cells = next;
+      floorRecalc(floors[fi]);
+    }
+
+    // Pass 2: top->bottom slight align to above (helps avoid zig-zag)
+    for(let fi=floors.length-2; fi>=0; fi--){
+      const above = floors[fi+1].cells.slice();
+      const cur = floors[fi].cells.slice();
+      const used = Array(cur.length).fill(false);
+      const next = Array(cur.length).fill(null);
+
+      for(let c=0;c<cur.length;c++){
+        const a = above[c];
+        if(a==null) continue;
+        let found=-1;
+        for(let k=0;k<cur.length;k++){
+          if(used[k]) continue;
+          if(cur[k]!=null && Math.abs(cur[k]-a)<1e-6){ found=k; break; }
+        }
+        if(found>=0){
+          next[c]=cur[found];
+          used[found]=true;
+        }
+      }
+
+      const rest=[];
+      for(let k=0;k<cur.length;k++) if(!used[k] && cur[k]!=null) rest.push(cur[k]);
+      rest.sort((a,b)=>a-b);
+
+      for(let c=0;c<next.length;c++){
+        if(next[c]==null){
+          next[c] = rest.length ? rest.shift() : null;
+        }
+      }
+
+      floors[fi].cells = next;
+      floorRecalc(floors[fi]);
+    }
+  }
+
+
+  function computeTargets(totalBuilt, numFloors){
+    const shrink=getShrinkPct();
+    const avg=totalBuilt/numFloors;
+    return Array.from({length:numFloors}, (_,i)=>{
+      const frac=(numFloors<=1)?0:(i/(numFloors-1));
+      return avg*(1-shrink*frac);
+    });
+  }
+
+  function checkMonotoneAreas(floors){ for(let i=1;i<floors.length;i++) if(floors[i].area>floors[i-1].area+1e-6) return false; return true; }
+  function checkMonotoneUnits(floors){ for(let i=1;i<floors.length;i++) if(floors[i].units>floors[i-1].units) return false; return true; }
+  function noEmptyFloors(floors){ return floors.every(f=>f.units>=1); }
+
+  // ===== v17: ranges coverage check + auto-fix =====
+  function autoFixRangesToCoverAllFloors(types, numFloors){
+    // ignore penthouse for coverage
+    const nonPent = types.filter(t=>!t.isPenthouse);
+    if(nonPent.length===0) return { ok:false, msg:'אין טיפוסים שאינם פנטהאוז. חייב לפחות טיפוס אחד רגיל.' };
+
+    // compute floors with no allowed type
+    const uncovered=[];
+    for(let f=1; f<=numFloors; f++){
+      const ok = nonPent.some(t => f>=t.minFloor && f<=t.maxFloor);
+      if(!ok) uncovered.push(f);
+    }
+
+    if(uncovered.length===0) return { ok:true, msg:'' };
+
+    // fix: for each uncovered floor, extend the "closest" type range to include it
+    uncovered.forEach(f=>{
+      // pick type with closest range edge to that floor
+      let best=null;
+      for(const t of nonPent){
+        const dist = (f < t.minFloor) ? (t.minFloor - f) : (f > t.maxFloor ? (f - t.maxFloor) : 0);
+        if(best==null || dist < best.dist || (dist===best.dist && t.size < best.t.size)) best={t, dist};
+      }
+      if(f < best.t.minFloor) best.t.minFloor = f;
+      if(f > best.t.maxFloor) best.t.maxFloor = f;
+    });
+
+    // re-check
+    for(let f=1; f<=numFloors; f++){
+      const ok = nonPent.some(t => f>=t.minFloor && f<=t.maxFloor);
+      if(!ok) return { ok:false, msg:'כשל בתיקון אוטומטי לטווחים. (נדיר)' };
+    }
+    return { ok:true, msg:`הכלי הרחיב אוטומטית טווחים כדי לכסות קומות חסרות: ${uncovered.join(', ')}` };
+  }
+
+
+
+// ===== v18: reserve units so types won't "run out" on higher floors =====
+function isAllowedOnFloor(tr, floorN){ return floorN >= tr.minFloor && floorN <= tr.maxFloor; }
+
+function reserveOneUnitPerFloor(types, numFloors){
+  // Returns reserveByIndex: how many units we should pre-allocate to ensure at least one allowed unit exists on each floor.
+  const reserve = Array(types.length).fill(0);
+
+  for(let f=1; f<=numFloors; f++){
+    const candidates = types
+      .map((t,i)=>({t,i}))
+      .filter(x => isAllowedOnFloor(x.t, f))
+      .filter(x => !x.t.isPenthouse);
+
+    if(candidates.length === 0) continue;
+
+    const frac = (numFloors<=1)?0:((f-1)/(numFloors-1));
+    const desired = 55 + frac*(115-55); // heuristic target size by height
+    candidates.sort((a,b)=> Math.abs(a.t.size-desired) - Math.abs(b.t.size-desired));
+    reserve[candidates[0].i] += 1;
+  }
+  return reserve;
+}
+
+  function minAllowedSizeOnFloor(typesComputed, floorN){
+    // ignore penthouse when searching minimum (unless it's exactly that floor and it's the only option)
+    let min=Infinity;
+    for(const t of typesComputed){
+      if(floorN<t.minFloor || floorN>t.maxFloor) continue;
+      // penthouse is allowed only on top typically; still can be min if needed
+      if(t.unitsRemaining<=0) continue;
+      min = Math.min(min, t.size);
+    }
+    return Number.isFinite(min) ? min : null;
+  }
+
+  
+
+function calculate(){
+  // === V22: Robust always-works solver ===
+  typesErrorEl.textContent=''; tmamErrorEl.textContent=''; calcErrorEl.textContent='';
+  summaryCard.style.display='none'; floorsCard.style.display='none'; sectionCard.style.display='none';
+  exportBtn.disabled=true; toggleSectionBtn.disabled=true; lastResults=null;
+
+  const totalArea=parseFloat(totalAreaEl.value);
+  let numFloors=parseInt(numFloorsEl.value,10);
+  const cols=getMaxUnitsPerFloor();
+  if(!Number.isFinite(totalArea)||totalArea<=0){ calcErrorEl.textContent='נא להזין זכויות בנייה > 0.'; return; }
+  if(!Number.isFinite(numFloors)||numFloors<=0){ calcErrorEl.textContent='נא להזין מספר קומות.'; return; }
+  if(!cols){ calcErrorEl.textContent='נא להזין מגבלת יח״ד בקומה.'; return; }
+  if(apartmentTypes.length===0){ calcErrorEl.textContent='אין טיפוסים. לחץ "הצע מיקס אוטומטי".'; return; }
+
+  const capArea=getMaxFloorAreaCap();
+  const totalUnitsCap = totalUnitsCapEl.value ? parseInt(totalUnitsCapEl.value,10) : null;
+  const shrink=getShrinkPct();
+  const stackStrength=getStackStrength();
+
+  // ---- validate & normalize types ----
+  const types = apartmentTypes.map(t=>({
+    name: t.name,
+    size: parseFloat(t.size)||0,
+    share: parseFloat(t.share)||0,
+    isPenthouse: !!t.isPenthouse,
+    fixedUnits: (t.fixedUnits!=null && t.fixedUnits!=='' ? parseInt(t.fixedUnits,10) : null),
+    minFloor: parseInt(t.minFloor,10)||1,
+    maxFloor: parseInt(t.maxFloor,10)||numFloors
+  }));
+
+  for(const t of types){
+    if(!t.size || t.size<35 || t.size>130){ typesErrorEl.textContent='גודל דירה חייב להיות 35–130.'; return; }
+    if(t.minFloor<1) t.minFloor=1;
+    if(t.maxFloor>numFloors) t.maxFloor=numFloors;
+    if(t.minFloor>t.maxFloor){ const tmp=t.minFloor; t.minFloor=t.maxFloor; t.maxFloor=tmp; }
+    if(t.isPenthouse){
+      const fu=parseInt(t.fixedUnits,10);
+      if(!fu||fu<=0){ typesErrorEl.textContent='לפנטהאוז חובה מס׳ דירות קבוע (1–4).'; return; }
+      t.minFloor=numFloors; t.maxFloor=numFloors;
+      t.fixedUnits=fu;
+    }
+  }
+
+  // ---- tmam ----
+  let tmamArea=0, tmamUnits=0;
+  if(hasTmamEl.checked){
+    if(tmamTypes.length===0){ tmamErrorEl.textContent='סימנת תמורה – צריך טיפוס.'; return; }
+    for(const t of tmamTypes){
+      const u=parseInt(t.units,10)||0;
+      const s=parseFloat(t.size)||0;
+      if(u<0||s<=0){ tmamErrorEl.textContent='תמורה לא תקין.'; return; }
+      tmamArea+=u*s; tmamUnits+=u;
+    }
+    if(tmamArea>totalArea){ tmamErrorEl.textContent='שטח תמורה חורג מהזכויות.'; return; }
+  }
+
+  // ---- compute unit counts (always-feasible mode) ----
+  // We prefer leaving unused rights rather than failing.
+  const fixedByType = types.map(t=>{
+    if(t.fixedUnits!=null && Number.isFinite(t.fixedUnits) && t.fixedUnits>=0) return t.fixedUnits;
+    return null;
+  });
+
+  let fixedArea=0, fixedUnitsTotal=0;
+  for(let i=0;i<types.length;i++){
+    const fu=fixedByType[i];
+    if(fu!=null && fu>0){ fixedArea += fu*types[i].size; fixedUnitsTotal += fu; }
+  }
+  if(fixedArea>(totalArea-tmamArea)){ calcErrorEl.textContent='דירות קבועות חורגות מהשטח שנותר.'; return; }
+
+  const remainingAreaForShare=(totalArea-tmamArea)-fixedArea;
+
+  const nonPentIdx = types.map((t,i)=>!t.isPenthouse?i:-1).filter(i=>i>=0);
+  const shareIdx = nonPentIdx.filter(i=>fixedByType[i]==null);
+
+  const sumShare = shareIdx.reduce((s,i)=>s+Math.max(0,types[i].share||0),0);
+  const unitsByType = types.map((t,i)=> (fixedByType[i]!=null ? fixedByType[i] : 0));
+
+  // Estimate how many share-units possible by area (cap by totalUnitsCap if set)
+  let totalUnitsShare=0;
+  if(sumShare>0 && remainingAreaForShare>0){
+    const weightedAvg = shareIdx.reduce((acc,i)=> acc + types[i].size*((types[i].share||0)/sumShare), 0) || 80;
+    totalUnitsShare = Math.max(0, Math.floor(remainingAreaForShare/weightedAvg));
+    if(totalUnitsCap && totalUnitsCap>0){
+      const allowed = Math.max(0, totalUnitsCap - fixedUnitsTotal - tmamUnits);
+      totalUnitsShare = Math.min(totalUnitsShare, allowed);
+    }
+  }
+
+  // Distribute share units by shares (rounded) – but we will also auto-fix shortages later.
+  if(sumShare>0 && totalUnitsShare>0){
+    shareIdx.forEach(i=>{
+      unitsByType[i] += Math.max(0, Math.round(totalUnitsShare*((types[i].share||0)/sumShare)));
+    });
+  }
+
+  // ---- HARD rule: never create "holes": if not enough total units to fill floors, reduce floors automatically ----
+  const totalUnitsAvailable = unitsByType.reduce((a,b)=>a+b,0) + tmamUnits;
+  // also enforce: avoid tons of 1-unit floors -> require a reasonable minimum average
+  // We compute a feasible floor count that can be filled with a unit-profile.
+  function buildMinUnitsProfile(nf){
+    const bottomMin = Math.min(cols, Math.max(2, Math.round(cols*0.5))); // e.g., 7 -> 4
+    const midMin = Math.min(cols, Math.max(2, Math.round(cols*0.35)));  // e.g., 7 -> 2-3
+    const topMin = 1;
+
+    const topBand = Math.max(2, Math.round(nf*0.15));
+    const midBand = Math.max(2, Math.round(nf*0.35));
+    const bottomBand = Math.max(0, nf - topBand - midBand);
+
+    const prof = [];
+    for(let i=0;i<bottomBand;i++) prof.push(bottomMin);
+    for(let i=0;i<midBand;i++) prof.push(midMin);
+    for(let i=0;i<topBand;i++) prof.push(topMin);
+    // length nf, index0 bottom
+    return prof;
+  }
+
+  function penthouseUnitsNeeded(){
+    let p=0;
+    for(let i=0;i<types.length;i++) if(types[i].isPenthouse) p += (unitsByType[i]||0);
+    return p;
+  }
+
+  function findFeasibleFloors(requested){
+    const pNeed = penthouseUnitsNeeded();
+    for(let nf=requested; nf>=1; nf--){
+      if(totalUnitsAvailable < nf) continue; // need at least 1 per floor
+      const minProf = buildMinUnitsProfile(nf);
+      // ensure top floor can host penthouse units
+      minProf[nf-1] = Math.max(minProf[nf-1], pNeed);
+      const minSum = minProf.reduce((a,b)=>a+b,0);
+      if(minSum <= totalUnitsAvailable) return { nf, minProf };
+    }
+    return { nf: Math.max(1, Math.min(requested, totalUnitsAvailable)), minProf: buildMinUnitsProfile(Math.max(1, Math.min(requested, totalUnitsAvailable))) };
+  }
+
+  const feasible = findFeasibleFloors(numFloors);
+  if(feasible.nf !== numFloors){
+    numFloors = feasible.nf;
+    numFloorsEl.value = numFloors;
+    // also clamp type ranges to new floors
+    for(const t of types){
+      t.minFloor = Math.max(1, Math.min(t.minFloor, numFloors));
+      t.maxFloor = Math.max(1, Math.min(t.maxFloor, numFloors));
+      if(t.isPenthouse){ t.minFloor=numFloors; t.maxFloor=numFloors; }
+      if(t.minFloor>t.maxFloor){ t.minFloor=1; t.maxFloor=numFloors; }
+    }
+  }
+
+  // ---- Build desired units-per-floor (bottom index0) non-increasing upwards ----
+  const minProf = feasible.minProf.slice(0,numFloors);
+  minProf[numFloors-1] = Math.max(minProf[numFloors-1], penthouseUnitsNeeded());
+
+  const unitsPerFloor = Array(numFloors).fill(0);
+  // set top-down minima ensuring lower >= above
+  unitsPerFloor[numFloors-1] = Math.min(cols, minProf[numFloors-1]);
+  for(let f=numFloors-2; f>=0; f--){
+    unitsPerFloor[f] = Math.min(cols, Math.max(minProf[f], unitsPerFloor[f+1]));
+  }
+  // distribute remaining units
+  let allocated = unitsPerFloor.reduce((a,b)=>a+b,0);
+  let remainingUnits = totalUnitsAvailable - allocated;
+  for(let f=0; f<numFloors && remainingUnits>0; f++){
+    const maxAdd = cols - unitsPerFloor[f];
+    if(maxAdd<=0) continue;
+    const add = Math.min(maxAdd, remainingUnits);
+    unitsPerFloor[f] += add;
+    remainingUnits -= add;
+  }
+
+  // ---- Create floors structure ----
+  const floors = makeFloors(numFloors, cols);
+  // targets only for display
+  const totalMixAreaEst = unitsByType.reduce((acc,u,i)=>acc + (u||0)*types[i].size, 0);
+  const totalBuiltEst = tmamArea + totalMixAreaEst;
+  const avg = totalBuiltEst/numFloors;
+  const targets = Array.from({length:numFloors}, (_,i)=> avg*(1-shrink*(i/(numFloors-1||1))));
+
+  // ---- Build remaining pool ----
+  const computed = types.map((t,i)=>({
+    ...t,
+    units: unitsByType[i]||0,
+    unitsRemaining: unitsByType[i]||0
+  }));
+
+
+  // ---- V24: spread unit types across floors (avoid dumping in 3-4 floors) + keep vertical stacks ----
+  // Soft per-type per-floor cap (enforced via penalty, not hard stop) to distribute each type לאורך הבניין.
+  const typeAllowedFloors = computed.map(tr => Math.max(1, (tr.maxFloor - tr.minFloor + 1)));
+  const capPerFloorByType = computed.map((tr, i) => {
+    if(tr.isPenthouse) return cols; // don't cap penthouse
+    const base = Math.ceil((tr.units || 0) / typeAllowedFloors[i]);
+    return Math.max(1, Math.min(cols, base)); // soft cap
+  });
+  const floorTypeCounts = Array.from({length: numFloors}, () => Array(computed.length).fill(0));
+  function incTypeCount(floorN, typeIndex){
+    if(typeIndex==null) return;
+    if(floorN<1 || floorN>numFloors) return;
+    floorTypeCounts[floorN-1][typeIndex] += 1;
+  }
+
+
+  // Helper: allow-relax ranges if needed (always-works)
+  function allowedOnFloor(tr, floorN){
+    return floorN>=tr.minFloor && floorN<=tr.maxFloor;
+  }
+
+  function pickTypeForCell(floorN, belowSize, desiredSize){
+    // candidates: prefer allowed + remaining
+    let best=null;
+
+    // Pre-check: do we have ANY allowed candidates with remaining?
+    let anyAllowed=false;
+    for(let i=0;i<computed.length;i++){
+      const tr=computed[i];
+      if(tr.unitsRemaining<=0) continue;
+      if(allowedOnFloor(tr,floorN)) { anyAllowed=true; break; }
+    }
+
+    for(let i=0;i<computed.length;i++){
+      const tr=computed[i];
+      if(tr.unitsRemaining<=0) continue;
+
+      const isAllowed = allowedOnFloor(tr,floorN);
+
+      // if none allowed exist, we allow range-relax (but keep penalty small so it will still prefer closest-to-range)
+      const penalty = isAllowed ? 0 : (anyAllowed ? 1000 : 40);
+
+      // prefer stacking strongly
+      const stackBonus = (belowSize!=null && Math.abs(belowSize-tr.size)<1e-6) ? - (stackStrength/4) : 0;
+
+      // soft cap to avoid dumping a type in a few floors
+      const cnt = floorTypeCounts[floorN-1][i] || 0;
+      const cap = capPerFloorByType[i] || cols;
+      const capPenalty = (cnt >= cap && !tr.isPenthouse) ? (35 * (cnt - cap + 1)) : 0;
+
+      // size fit
+      const sizePenalty = Math.abs(tr.size - desiredSize);
+
+      const score = penalty + sizePenalty + capPenalty + stackBonus;
+
+      if(!best || score < best.score) best = { i, score, allowed: isAllowed };
+    }
+    return best;
+  }
+
+  // place tmam simply: spread bottom-up within their ranges, but do not fail
+  if(hasTmamEl.checked){
+    for(const tt of tmamTypes){
+      const u=parseInt(tt.units,10)||0;
+      const s=parseFloat(tt.size)||0;
+      if(u<=0||s<=0) continue;
+      let f= Math.max(1, Math.min(numFloors, parseInt(tt.minFloor,10)||1));
+      const fmax = Math.max(1, Math.min(numFloors, parseInt(tt.maxFloor,10)||numFloors));
+      for(let k=0;k<u;k++){
+        if(f>fmax) f = Math.max(1, Math.min(numFloors, parseInt(tt.minFloor,10)||1));
+        // find next floor with capacity
+        let tries=0;
+        while(tries<numFloors){
+          const fl=floors[f-1];
+          if(fl.units < unitsPerFloor[f-1] && (!capArea || fl.area+s<=capArea+1e-6)){
+            placeInFloor(fl, s, null);
+            break;
+          }
+          f = (f < fmax) ? (f+1) : (Math.max(1, Math.min(numFloors, parseInt(tt.minFloor,10)||1)));
+          tries++;
+        }
+        f++;
+      }
+    }
+  }
+
+  // place penthouse first on top floor
+  const topF = numFloors;
+  let penthPlaced=0;
+  for(let i=0;i<computed.length;i++){
+    const tr=computed[i];
+    if(!tr.isPenthouse) continue;
+    const fl=floors[topF-1];
+    while(tr.unitsRemaining>0 && fl.units < unitsPerFloor[topF-1]){
+      if(capArea && fl.area+tr.size>capArea+1e-6) break; // if cap too small, we just stop (leave unused)
+      placeInFloor(fl, tr.size, null);
+      incTypeCount(topF, i);
+      tr.unitsRemaining--;
+      penthPlaced++;
+    }
+  }
+  // If still penthouse remaining but top floor unit budget too small, we expand top budget by stealing from below (always possible because bottom >= top)
+  const penthRemaining = computed.filter(t=>t.isPenthouse).reduce((a,t)=>a+t.unitsRemaining,0);
+  if(penthRemaining>0){
+    // increase top floor unit allowance up to cols
+    const canGrow = cols - unitsPerFloor[topF-1];
+    const grow = Math.min(canGrow, penthRemaining);
+    unitsPerFloor[topF-1] += grow;
+    // re-place
+    for(let i=0;i<computed.length;i++){
+      const tr=computed[i];
+      if(!tr.isPenthouse) continue;
+      const fl=floors[topF-1];
+      while(tr.unitsRemaining>0 && fl.units < unitsPerFloor[topF-1]){
+        if(capArea && fl.area+tr.size>capArea+1e-6) break;
+        placeInFloor(fl, tr.size, null);
+        incTypeCount(topF, i);
+        tr.unitsRemaining--;
+      }
+    }
+  }
+
+  // Fill remaining cells TOP -> BOTTOM to guarantee area monotonic (downwards >= upwards)
+  // desired size increases upwards; we enforce each lower floor area >= above by biasing larger sizes if needed.
+  for(let fi=numFloors-1; fi>=0; fi--){
+    const floorN = fi+1;
+    const fl = floors[fi];
+    const desired = 55 + (fi/(numFloors-1||1))*(115-55);
+    const targetUnits = unitsPerFloor[fi];
+
+    // fill units
+    let guard=0;
+    while(fl.units < targetUnits && guard<50000){
+      guard++;
+      const col = fl.cells.findIndex(v=>v==null);
+      if(col<0) break;
+      const belowSize = (fi>0) ? floors[fi-1].cells[col] : null;
+
+      // try allowed candidates first
+      let pick = pickTypeForCell(floorN, belowSize, desired);
+      if(!pick) break;
+
+      // if pick is disallowed and there exists ANY allowed candidate, try to find allowed
+      if(!pick.allowed){
+        let alt=null;
+        for(let i=0;i<computed.length;i++){
+          const tr=computed[i];
+          if(tr.unitsRemaining<=0) continue;
+          if(!allowedOnFloor(tr,floorN)) continue;
+          const stackPenalty = (belowSize!=null && Math.abs(belowSize-tr.size)<1e-6) ? - (stackStrength/10) : 0;
+          const score = Math.abs(tr.size-desired)+stackPenalty;
+          if(!alt || score<alt.score) alt={i, score};
+        }
+        if(alt) pick={i:alt.i, allowed:true};
+      }
+
+      const tr=computed[pick.i];
+      if(capArea && fl.area+tr.size>capArea+1e-6){
+        // if cap blocks, stop adding more units to this floor (leave it under-filled if needed)
+        break;
+      }
+      placeInFloor(fl, tr.size, col);
+      incTypeCount(floorN, pick.i);
+      tr.unitsRemaining--;
+    }
+
+    // Ensure no empty floors
+    if(fl.units===0){
+      // place the smallest remaining non-pent type (range relaxed)
+      let best=null;
+      for(let i=0;i<computed.length;i++){
+        const tr=computed[i];
+        if(tr.unitsRemaining<=0) continue;
+        if(tr.isPenthouse) continue;
+        if(!best || tr.size<best.size) best={i, size:tr.size};
+      }
+      if(best){
+        const tr=computed[best.i];
+        if(!capArea || tr.size<=capArea+1e-6){
+          placeInFloor(fl, tr.size, null);
+          incTypeCount(floorN, best.i);
+          tr.unitsRemaining--;
+        }
+      }
+    }
+
+    // Area monotonic (downwards): if lower floors can't keep up, we will fix later bottom-up
+  }
+
+  // Bottom-up fix: enforce area[fi] >= area[fi+1] by upgrading lower floor units (swap in bigger sizes) if needed.
+  function largestAvailableNonPent(){
+    let best=null;
+    for(let i=0;i<computed.length;i++){
+      const tr=computed[i];
+      if(tr.unitsRemaining<=0) continue;
+      if(tr.isPenthouse) continue;
+      if(!best || tr.size>best.size) best={i,size:tr.size};
+    }
+    return best;
+  }
+
+  for(let fi=numFloors-2; fi>=0; fi--){
+    const lower=floors[fi];
+    const upper=floors[fi+1];
+    if(lower.area + 1e-6 >= upper.area) continue;
+
+    // try to upgrade existing lower cells by replacing small with bigger remaining units
+    let tries=0;
+    while(lower.area + 1e-6 < upper.area && tries<20000){
+      tries++;
+      const smallestIdx = lower.cells.reduce((best, v, idx)=> {
+        if(v==null) return best;
+        if(best==null || v<best.v) return {idx, v};
+        return best;
+      }, null);
+
+      const big = largestAvailableNonPent();
+      if(!smallestIdx || !big) break;
+
+      const old = smallestIdx.v;
+      const newSize = big.size;
+      if(newSize <= old + 1e-6) break;
+
+      // check capArea
+      const newArea = lower.area - old + newSize;
+      if(capArea && newArea>capArea+1e-6) break;
+
+      // apply swap (consume one big, give back one "old" to pool by adding to a matching type if exists; else ignore)
+      lower.cells[smallestIdx.idx]=newSize;
+      lower.area = newArea;
+
+      computed[big.i].unitsRemaining--;
+
+      // "return" the old unit back into pool by finding closest type size and incrementing remaining
+      let closest=null;
+      for(let i=0;i<computed.length;i++){
+        const tr=computed[i];
+        if(tr.isPenthouse) continue;
+        const d=Math.abs(tr.size-old);
+        if(!closest || d<closest.d) closest={i,d};
+      }
+      if(closest) computed[closest.i].unitsRemaining++;
+    }
+  }
+
+  // Final monotonic check for units (already constructed) + area
+  // If still violates, we relax by allowing unused rights + slight underfill: we won't error.
+  // However we keep strict: no empty floors.
+  if(!noEmptyFloors(floors)){
+    calcErrorEl.textContent='לא הצלחתי לייצר פתרון ללא קומות ריקות. נסה להגדיל יח״ד/קומה או להקטין מספר קומות.';
+    return;
+  }
+
+  // Recompute targets display & totals
+  const totalMixUnits = types.reduce((s,_,i)=>s + (unitsByType[i]||0),0);
+  const totalMixArea = types.reduce((s,t,i)=>s + (unitsByType[i]||0)*t.size,0);
+  const totalBuilt = tmamArea + floors.reduce((a,f)=>a+f.area,0); // actual used
+  const unused = totalArea - totalBuilt;
+
+  // summary
+  summaryCard.style.display='block';
+  summaryInfo.innerHTML = `
+    זכויות: <b>${totalArea.toFixed(0)} מ״ר</b> | קומות: <b>${numFloors}</b> | יח״ד/קומה: <b>${cols}</b>
+    ${totalUnitsCap ? ` | מגבלת יח״ד: <b>${totalUnitsCap}</b>` : ``}
+    ${capArea ? ` | תכסית מקס׳: <b>${capArea.toFixed(0)}</b>` : ``}
+    <br>תמורה: <b>${tmamUnits}</b> | <b>${tmamArea.toFixed(0)}</b> מ״ר
+    <br>יח״ד מחושבות (יעד): <b>${totalMixUnits}</b> | שטח מחושב (יעד): <b>${totalMixArea.toFixed(0)}</b> מ״ר
+    <br>שטח בפועל בחתך: <b>${totalBuilt.toFixed(0)}</b> מ״ר | יתרה: <b>${unused.toFixed(0)}</b> מ״ר
+  `;
+
+  // Build summary table from requested units (not from actual placements)
+  const sumTable=document.createElement('table');
+  sumTable.innerHTML = `
+    <thead><tr><th>טיפוס</th><th>גודל</th><th>אחוז</th><th>קבוע</th><th>טווח</th><th>דירות</th><th>שטח</th><th>פנטהאוז</th></tr></thead>
+    <tbody>
+      ${types.map((tr,i)=>`<tr>
+        <td>${escapeHtml(tr.name)}</td>
+        <td>${tr.size.toFixed(0)}</td>
+        <td>${tr.share}</td>
+        <td>${(fixedByType[i]!=null && fixedByType[i]!==0)?fixedByType[i]:''}</td>
+        <td>${tr.minFloor}-${tr.maxFloor}</td>
+        <td><b>${unitsByType[i]||0}</b></td>
+        <td>${((unitsByType[i]||0)*tr.size).toFixed(1)}</td>
+        <td>${tr.isPenthouse?'כן':'לא'}</td>
+      </tr>`).join('')}
+    </tbody>
+  `;
+  summaryTableWrap.innerHTML='';
+  summaryTableWrap.appendChild(sumTable);
+
+  normalizeColumns(floors);
+
+  lastResults = { hasFloors:true, numFloors, cols, floors, targets, totalArea, totalBuilt, capArea };
+  renderFloorsTable(lastResults);
+  renderSectionTable(lastResults);
+
+  floorsCard.style.display='block';
+  sectionCard.style.display='block';
+  exportBtn.disabled=false;
+  toggleSectionBtn.disabled=false;
+}
+
+
+
+function renderFloorsTable(res){
+    const {floors, numFloors, targets, cols, capArea} = res;
+    const okA=checkMonotoneAreas(floors);
+    const okU=checkMonotoneUnits(floors);
+    const okE=noEmptyFloors(floors);
+    statusLine.innerHTML = `
+      ${okA?'<span class="ok">✓</span>':'<span class="bad">✗</span>'} שטח מצטמצם |
+      ${okU?'<span class="ok">✓</span>':'<span class="bad">✗</span>'} יח״ד מצטמצמות |
+      ${okE?'<span class="ok">✓</span>':'<span class="bad">✗</span>'} אין קומות ריקות
+      ${capArea?` | תכסית: <b>${capArea.toFixed(0)}</b>`:''}
+    `;
+    const table=document.createElement('table');
+    table.innerHTML=`<thead><tr><th>קומה</th><th>יח״ד</th><th>גודל קומה</th><th>יעד</th></tr></thead>`;
+    const tbody=document.createElement('tbody');
+    for(let fi=numFloors-1; fi>=0; fi--){
+      const fl=floors[fi];
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${fl.n}</td><td><b>${fl.units}</b> / ${cols}</td><td><b>${fl.area.toFixed(1)}</b></td><td>${targets[fi].toFixed(1)}</td>`;
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    floorsTableWrapper.innerHTML='';
+    floorsTableWrapper.appendChild(table);
+  }
+
+  function renderSectionTable(res){
+    const {floors, numFloors, cols} = res;
+    const colorMap = buildColorMapFromFloors(floors);
+    const table=document.createElement('table');
+    table.innerHTML = `<thead><tr><th>קומה</th><th>הזזה</th>${Array.from({length:cols},(_,i)=>`<th>עמודה ${i+1}</th>`).join('')}</tr></thead>`;
+    const tbody=document.createElement('tbody');
+
+    for(let fi=numFloors-1; fi>=0; fi--){
+      const fl=floors[fi];
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${fl.n}</td>
+        <td><div class="floor-controls">
+          <button class="btn secondary tiny" type="button" ${fi===numFloors-1?'disabled':''} onclick="__swap(${fi}, ${fi+1})">↑</button>
+          <button class="btn secondary tiny" type="button" ${fi===0?'disabled':''} onclick="__swap(${fi}, ${fi-1})">↓</button>
+        </div></td>`;
+      for(let c=0;c<cols;c++){
+        const v=fl.cells[c];
+        const td=document.createElement('td');
+        if(v!=null){ td.textContent=v.toFixed(0); td.style.backgroundColor=colorMap[v.toFixed(2)]||''; }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    sectionTableWrapper.innerHTML='';
+    sectionTableWrapper.appendChild(table);
+
+    // expose swap for inline buttons
+    window.__swap = (a,b)=> trySwapFloors(a,b);
+  }
+
+  function deepCopyFloors(floors){ return floors.map(f=>({cells:[...f.cells], area:f.area, units:f.units})); }
+  function restoreFloors(floors, snap){ for(let i=0;i<floors.length;i++){ floors[i].cells=[...snap[i].cells]; floors[i].area=snap[i].area; floors[i].units=snap[i].units; } }
+
+  
+  function trySwapFloors(a,b){
+    if(!lastResults?.hasFloors) return;
+    const {floors, capArea} = lastResults;
+    if(b<0 || b>=floors.length) return;
+
+    // swap rows (whole floor mix)
+    const tmp = floors[a].cells; floors[a].cells = floors[b].cells; floors[b].cells = tmp;
+    floorRecalc(floors[a]); floorRecalc(floors[b]);
+
+    // Bubble-fix monotonicity instead of blocking the user.
+    // Rule: as we go UP (higher floor index), area & units must not INCREASE.
+    let changed = true;
+    let guard = 0;
+    while(changed && guard < 5000){
+      guard++;
+      changed = false;
+      for(let i=1;i<floors.length;i++){
+        const above = floors[i];
+        const below = floors[i-1];
+        const badArea = above.area > below.area + 1e-6;
+        const badUnits = above.units > below.units;
+        if(badArea || badUnits){
+          const t = floors[i].cells; floors[i].cells = floors[i-1].cells; floors[i-1].cells = t;
+          floorRecalc(floors[i]); floorRecalc(floors[i-1]);
+          changed = true;
+        }
+      }
+    }
+
+    const ok = noEmptyFloors(floors) && checkMonotoneUnits(floors) && checkMonotoneAreas(floors) && (!capArea || floors.every(f=>f.area<=capArea+1e-6));
+    if(!ok){
+      // fallback: re-sort by (area,units) to recover a valid "building-like" order
+      const idx = floors.map((f,i)=>({i, area:f.area, units:f.units, cells:[...f.cells]}));
+      idx.sort((x,y)=> (y.area-x.area) || (y.units-x.units));
+      for(let k=0;k<floors.length;k++){
+        floors[k].cells = idx[k].cells;
+        floorRecalc(floors[k]);
+      }
+    }
+
+    // Align columns so the same sizes tend to sit above each other
+    normalizeColumns(floors);
+
+    renderFloorsTable(lastResults);
+    renderSectionTable(lastResults);
+  }
+
+
+function exportExcelWithColors(){
+    if(!lastResults) return;
+    const { totalArea, totalBuilt, numFloors, cols, floors, targets, capArea } = lastResults;
+    const colorMap = buildColorMapFromFloors(floors);
+
+    let html = `
+      <html dir="rtl"><head><meta charset="UTF-8"></head><body style="font-family:Arial;">
+      <h2>סיכום</h2>
+      <table border="1" style="border-collapse:collapse;">
+        <tr><td>זכויות בנייה (מ״ר)</td><td>${totalArea.toFixed(1)}</td></tr>
+        <tr><td>שטח מחושב כולל (מ״ר)</td><td>${totalBuilt.toFixed(1)}</td></tr>
+        <tr><td>מספר קומות</td><td>${numFloors}</td></tr>
+        <tr><td>יח״ד/קומה (מקס׳)</td><td>${cols}</td></tr>
+        ${capArea?`<tr><td>תכסית מקס׳/קומה</td><td>${capArea.toFixed(1)}</td></tr>`:''}
+      </table>
+
+      <h2>חתך (צבעוני)</h2>
+      <table border="1" style="border-collapse:collapse; font-size:11pt;">
+        <tr style="background:#f0f0f0;">
+          <th>קומה</th><th>יח״ד</th><th>גודל קומה</th><th>יעד</th>
+          ${Array.from({length:cols},(_,i)=>`<th>עמודה ${i+1}</th>`).join('')}
+        </tr>
+    `;
+
+    for(let fi=numFloors-1; fi>=0; fi--){
+      const fl=floors[fi];
+      html += `<tr>
+        <td>${fl.n}</td>
+        <td>${fl.units}</td>
+        <td>${fl.area.toFixed(1)}</td>
+        <td>${targets[fi].toFixed(1)}</td>`;
+      for(let c=0;c<cols;c++){
+        const v=fl.cells[c];
+        if(v==null) html += `<td></td>`;
+        else html += `<td style="background:${colorMap[v.toFixed(2)]||'#fff'}; text-align:center;">${v.toFixed(0)}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</table></body></html>`;
+
+    const blob = new Blob(["\uFEFF" + html], {type:'application/vnd.ms-excel;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `apartment_mix_v24.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
